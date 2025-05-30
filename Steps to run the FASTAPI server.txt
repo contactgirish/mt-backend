@@ -1,0 +1,3 @@
+venv\Scripts\activate
+
+(venv) C:\MonkTrader\git\fastapi\fastapi> uvicorn main:app --reload

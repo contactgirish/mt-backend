@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MonkTrader Payment Test</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input, select, button { padding: 10px; margin: 10px 0; width: 100%; max-width: 500px; }
+    pre, #discount-info { background: #f4f4f4; padding: 10px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <h2>🧾 MonkTrader Payment Test</h2>
+
+  <input type="text" id="token-input" placeholder="JWT Token" onblur="fetchPlans()" />
+
+  <br>
+  <label>Device Type:</label><br/>
+  <input type="radio" name="device" value="IOS" onclick="fetchPlans()"> IOS
+  <input type="radio" name="device" value="Others" checked onclick="fetchPlans()"> Others
+
+  <br>
+  <label>Select Plan:</label><br/>
+  <select id="plan-select" onchange="onPlanChange()"></select>
+
+  <input type="number" id="amount-input" placeholder="Amount ₹" readonly />
+  <input type="email" id="email-input" placeholder="Email" value="test@monktrader.ai" />
+  <input type="text" id="contact-input" placeholder="Contact" value="1234567890" />
+
+  <input type="text" id="promocode-input" placeholder="Promocode (optional)" />
+  <button onclick="applyPromocode()">Apply Promocode</button>
+  <button onclick="removePromocode()">Remove Promocode</button>
+
+  <div id="discount-info"></div>
+  <button id="pay-button">Pay Now</button>
+
+  <h3>🔍 Payment Payload</h3>
+  <pre id="payment-response"></pre>
+
+  <script>
+    let selectedPlan = null;
+    let appliedPromocode = null;
+
+    async function fetchPlans() {
+      const token = document.getElementById("token-input").value.trim();
+      const deviceType = document.querySelector('input[name="device"]:checked').value;
+      if (!token) {
+        alert("Enter JWT token first");
+        return;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:8000/api/get_subscription_plans?device_type=${deviceType}`, {
+          headers: { "Authorization": "Bearer " + token }
+        });
+
+        const data = await res.json();
+        const plans = Array.isArray(data.plans) ? data.plans : data;
+
+        const select = document.getElementById("plan-select");
+        select.innerHTML = "";
+
+        if (plans.length === 0) {
+          select.innerHTML = "<option disabled selected>No plans found</option>";
+          selectedPlan = null;
+          return;
+        }
+
+        plans.forEach(plan => {
+          const option = document.createElement("option");
+          option.value = JSON.stringify(plan);
+          option.text = `${plan.plan_name} - ₹${plan.final_price}`;
+          select.appendChild(option);
+        });
+
+        selectedPlan = plans[0];
+        select.value = JSON.stringify(selectedPlan);
+        onPlanChange();
+      } catch (e) {
+        alert("Failed to load plans. Check token or server.");
+      }
+    }
+
+    function onPlanChange() {
+      const select = document.getElementById("plan-select");
+      selectedPlan = JSON.parse(select.value);
+      document.getElementById("amount-input").value = Math.round(selectedPlan.final_price);
+      appliedPromocode = null;
+      document.getElementById("promocode-input").value = "";
+      document.getElementById("discount-info").innerText = "";
+    }
+
+    async function applyPromocode() {
+      const token = document.getElementById("token-input").value.trim();
+      const promocode = document.getElementById("promocode-input").value.trim();
+      const planType = selectedPlan.plan_name.toUpperCase();
+
+      if (!token || !selectedPlan || !promocode) return alert("Missing required fields");
+
+      const res = await fetch("http://localhost:8000/api/apply_promocode", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          promocode,
+          device_type: selectedPlan.device_type,
+          plan_id: selectedPlan.id,
+          plan_type: planType
+        })
+      });
+
+      const result = await res.json();
+      if (result.success) {
+        appliedPromocode = promocode;
+        document.getElementById("amount-input").value = Math.round(result.final_price);
+        document.getElementById("discount-info").innerText =
+          `Price Before Tax: ₹${result.original_price}
+GST: ₹${result.gst}
+Final Price: ₹${result.final_price}`;
+      } else {
+        alert(result.detail || result.message || "Invalid promocode");
+      }
+    }
+
+    function removePromocode() {
+      appliedPromocode = null;
+      document.getElementById("promocode-input").value = "";
+      if (selectedPlan) {
+        document.getElementById("amount-input").value = Math.round(selectedPlan.final_price);
+      }
+      document.getElementById("discount-info").innerText = "";
+    }
+
+    document.getElementById("pay-button").onclick = async function () {
+      const token = document.getElementById("token-input").value.trim();
+      const amount = parseInt(document.getElementById("amount-input").value);
+      const email = document.getElementById("email-input").value.trim();
+      const contact = document.getElementById("contact-input").value.trim();
+      const deviceType = document.querySelector('input[name="device"]:checked').value;
+
+      if (!token || !selectedPlan || !email || !contact) return alert("All fields are required.");
+
+      if (deviceType === "IOS") {
+        const res = await fetch("http://localhost:8000/api/verify_apple_payment", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            payment_id: "apple_" + Date.now(),
+            receipt: "receipt_" + Date.now(),
+            amount: amount,
+            email: email,
+            contact: contact,
+            plan_id: selectedPlan.id,
+            promocode: appliedPromocode
+          })
+        });
+
+        const result = await res.json();
+        document.getElementById("payment-response").textContent = JSON.stringify(result, null, 2);
+
+      } else {
+        const orderRes = await fetch("http://localhost:8000/api/razorpay_create_order", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            plan_id: selectedPlan.id,
+            promocode: appliedPromocode
+          })
+        });
+
+        const order = await orderRes.json();
+        console.log("Created Razorpay Order:", order);
+
+        const rzp = new Razorpay({
+          key: "rzp_test_tla3IZ8XdEgroK",  // Replace with your test key
+          currency: "INR",
+          name: "MonkTrader",
+          description: "Subscription",
+          order_id: order.id,
+	  amount: order.amount,
+          handler: async function (response) {
+            const verifyRes = await fetch("http://localhost:8000/api/razorpay_verify_payment", {
+              method: "POST",
+              headers: {
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: amount,
+                email: email,
+                contact: contact,
+                promocode: appliedPromocode
+              })
+            });
+
+            const verifyResult = await verifyRes.json();
+            document.getElementById("payment-response").textContent = JSON.stringify(verifyResult, null, 2);
+          },
+          prefill: {
+            email: email,
+            contact: contact
+          },
+          theme: { color: "#3399cc" }
+        });
+
+        rzp.open();
+      }
+    };
+  </script>
+</body>
+</html>

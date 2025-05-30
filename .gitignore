@@ -1,0 +1,34 @@
+# Ignore Python virtual environment and crons
+venv/
+crons/
+
+# Bytecode files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Editor-specific files
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Compiled C files
+*.so
+
+# Coverage / test outputs
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+pytest_cache/
