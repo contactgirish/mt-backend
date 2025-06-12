@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, constr
 from utils.auth import authorize_user
 from utils.telegram_notifier import notify_internal
@@ -37,7 +36,7 @@ async def rename_watchlist(payload: RenameWatchlistRequest, request: Request, us
         if result == "UPDATE 0":
             raise HTTPException(status_code=404, detail="Watchlist not found")
 
-        return ORJSONResponse({"success": True, "message": "Watchlist renamed"})
+        return {"message": "Watchlist renamed"}
 
     except HTTPException as he:
         raise he

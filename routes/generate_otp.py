@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, EmailStr
 from db.connection import get_single_connection
 from db.db_helpers import fetch_one, execute_write
 from utils.telegram_notifier import notify_internal
 from utils.version_utils import determine_update_type
 from utils.datetime_utils import utc_now, utc_in
+
 import random
 import aiohttp
 import os
@@ -30,7 +30,7 @@ async def generate_otp(payload: GenerateOtpRequest, request: Request):
         user_row = await conn.fetchrow("SELECT id, is_blocked FROM mt_users WHERE email = $1", email)
         if user_row and user_row["is_blocked"]:
             await notify_internal(f"[Blocked OTP Attempt] Email: {email}")
-            raise HTTPException(status_code=403, detail="User is blocked")
+            raise HTTPException(status_code=403, detail="Sorry, the user id is blocked.")
 
         recent_otp = await conn.fetchrow(
             "SELECT * FROM mt_otps WHERE email = $1 ORDER BY created_at DESC LIMIT 1",
@@ -38,7 +38,8 @@ async def generate_otp(payload: GenerateOtpRequest, request: Request):
         )
         if recent_otp:
             if (now - recent_otp["last_sent_at"]).total_seconds() < 60:
-                raise HTTPException(status_code=429, detail="Please wait before requesting another OTP.")
+                raise HTTPException(status_code=403, detail="Please wait before requesting another OTP")
+
             if recent_otp["attempt_count"] >= 3:
                 raise HTTPException(status_code=429, detail="OTP request limit exceeded.")
 
@@ -64,15 +65,17 @@ async def generate_otp(payload: GenerateOtpRequest, request: Request):
 
         await send_otp_email(email, otp)
         update_type = await determine_update_type(conn, payload.platform, payload.appversion)
-        return ORJSONResponse({"success": True, "updateType": update_type})
+        return {"updateType": update_type}
 
+    except HTTPException:
+        raise
     except Exception as e:
         await notify_internal(f"[Generate OTP Error] {str(e)}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 async def send_otp_email(email: str, otp_code: str):
     api_url = "https://api.sparkpost.com/api/v1/transmissions"
-    
+
     html_template = f"""
     <div style='background-color: #f5f7fa; padding: 24px; font-family: "Segoe UI", Roboto, sans-serif;'>
       <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;'>
@@ -147,4 +150,7 @@ async def send_otp_email(email: str, otp_code: str):
         async with session.post(api_url, json=payload, headers=headers, timeout=10) as resp:
             if resp.status != 200:
                 error_msg = await resp.text()
-                raise Exception(f"Failed to send OTP email. Status {resp.status}: {error_msg}")
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Failed to send OTP email. Status {resp.status}: {error_msg}"
+                )

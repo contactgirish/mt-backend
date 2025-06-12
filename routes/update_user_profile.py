@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, EmailStr
 from db.connection import get_single_connection
 from db.db_helpers import execute_write
@@ -69,7 +68,7 @@ async def update_user_profile(
         await execute_write(query, tuple(values), conn)
         await conn.close()
 
-        return ORJSONResponse({"success": True, "message": "Profile updated successfully"})
+        return {"message": "Profile updated successfully"}
 
     except HTTPException:
         raise

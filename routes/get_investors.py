@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_one, fetch_all
 from utils.auth import authorize_user
@@ -19,7 +18,7 @@ async def get_investors(
         co_code_row = await fetch_one("SELECT co_code FROM script_master WHERE script_id = $1", (script_id,), conn)
         if not co_code_row:
             await conn.close()
-            return ORJSONResponse(status_code=404, content={"success": False, "message": "No company found for the given script ID."})
+            raise HTTPException(status_code=404, detail="No company found for the given script ID.")
 
         co_code = co_code_row["co_code"]
 
@@ -38,11 +37,11 @@ async def get_investors(
         await conn.close()
 
         results = [dict(row) for row in rows]
-        return ORJSONResponse(content={
-            "success": True,
+        return {
             "total_investors": total_investors,
             "data": results
-        })
+        }
+
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

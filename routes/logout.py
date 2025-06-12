@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from utils.jwt_utils import decode_jwt_token
 from db.connection import get_single_connection
@@ -30,7 +29,7 @@ async def logout_user(payload: LogoutRequest, request: Request):
             now, user_id
         )
 
-        return ORJSONResponse({"success": True, "message": "Logged out successfully"})
+        return {"message": "Logged out successfully"}
 
     except Exception as e:
         await notify_internal(f"[Logout Error] {str(e)}")

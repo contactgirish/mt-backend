@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, EmailStr
 from utils.datetime_utils import utc_now
 from utils.auth import authorize_user
@@ -91,7 +90,7 @@ async def raise_support_ticket(
             parse_mode="Markdown"
         )
 
-        return ORJSONResponse({"success": True, "message": "Support ticket submitted successfully"})
+        return {"message": "Support ticket submitted successfully"}
 
     except Exception as e:
         await notify_internal(f"[Support Ticket Error] {str(e)}")

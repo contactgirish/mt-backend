@@ -1,6 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
-from fastapi.responses import ORJSONResponse
-from pydantic import BaseModel
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all, fetch_one
 from utils.auth import authorize_user
@@ -9,9 +7,6 @@ from decimal import Decimal
 import math
 
 router = APIRouter()
-
-class WatchlistQuery(BaseModel):
-    watchlist_id: int
 
 VALID_SORT_COLUMNS = {
     "added_date": "w.added_date",
@@ -23,10 +18,10 @@ VALID_SORT_COLUMNS = {
     "price_difference": "sm.price_difference"
 }
 
-@router.post("/get_stocks_in_watchlist")
+@router.get("/get_stocks_in_watchlist")
 async def get_stocks_in_watchlist(
-    payload: WatchlistQuery,
-    request: Request,
+    watchlist_id: int = Query(..., description="Watchlist ID"),
+    request: Request = None,
     user_data: dict = Depends(authorize_user),
     page: int = Query(1, ge=1),
     limit: int | None = Query(None),
@@ -39,7 +34,6 @@ async def get_stocks_in_watchlist(
     company_size: str | None = Query(None)
 ):
     user_id = user_data["user_id"]
-    watchlist_id = payload.watchlist_id
     sort_column = VALID_SORT_COLUMNS.get(sort_by, "w.added_date")
     sort_direction = "ASC" if sort_order == "asc" else "DESC"
     offset = (page - 1) * limit if limit else 0
@@ -134,7 +128,7 @@ async def get_stocks_in_watchlist(
                 "has_prev_page": page > 1
             })
 
-        return ORJSONResponse(meta)
+        return {"data": meta}
 
     except HTTPException:
         raise

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from utils.auth import authorize_user
 from utils.datetime_utils import utc_now
@@ -97,7 +96,7 @@ async def add_stock_to_watchlist(
             conn
         )
 
-        return ORJSONResponse({"success": True, "message": "Stock added to watchlist"})
+        return ({"success": True, "message": "Stock added to watchlist"})
 
     except HTTPException:
         raise

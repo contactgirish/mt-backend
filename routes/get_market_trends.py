@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Query, Request, Depends
-from fastapi.responses import ORJSONResponse
+from fastapi import APIRouter, Query, Request, Depends, HTTPException
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
 from utils.auth import authorize_user
@@ -40,7 +39,6 @@ async def get_market_trends(
             filters.append("exchange = $%d" % (len(params) + 1))
             params.append(exchange.upper())
 
-        # ✅ Map simple input to full DB value
         company_size_map = {
             "SMALL": "Small Cap",
             "MID": "Mid Cap",
@@ -52,7 +50,6 @@ async def get_market_trends(
                 filters.append("company_size = $%d" % (len(params) + 1))
                 params.append(mapped_value)
 
-        # 🧠 Trend-based filters and sorting
         if trend == "gainers":
             filters.append("changed_percentage > 0")
             order_clause = "ORDER BY changed_percentage DESC"
@@ -96,8 +93,8 @@ async def get_market_trends(
         base_query += f" {order_clause} LIMIT {limit} OFFSET {offset}"
 
         results = await fetch_all(base_query, tuple(params), conn)
-        return ORJSONResponse([dict(row) for row in results])
+        return {"results": [dict(row) for row in results]}
 
     except Exception as e:
         await notify_internal(f"[get_market_trends Error] {str(e)}")
-        return ORJSONResponse(status_code=500, content={"error": "Internal Server Error"})
+        raise HTTPException(status_code=500, detail="Internal Server Error")

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Query
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
 from utils.telegram_notifier import notify_internal
@@ -10,7 +9,7 @@ router = APIRouter()
 def convert_decimal_to_float(row: dict) -> dict:
     return {k: float(v) if isinstance(v, Decimal) else v for k, v in row.items()}
 
-@router.get("/get_subscription_plans", response_class=ORJSONResponse)
+@router.get("/get_subscription_plans")
 async def get_subscription_plans(request: Request, device_type: str = Query(...)):
     try:
         conn = await get_single_connection()
@@ -26,7 +25,8 @@ async def get_subscription_plans(request: Request, device_type: str = Query(...)
         """
         rows = await fetch_all(query, (device_type,), conn)
         processed = [convert_decimal_to_float(dict(r)) for r in rows]
-        return ORJSONResponse(content={"plans": processed})
+        return {"plans": processed}
     except Exception as e:
         await notify_internal(f"[Subscription Plans Error] {str(e)}")
-        return ORJSONResponse(status_code=500, content={"error": "Failed to fetch subscription plans"})
+        raise HTTPException(status_code=500, detail="Failed to fetch subscription plans")
+

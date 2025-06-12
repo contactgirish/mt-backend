@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from db.connection import get_single_connection
 from db.db_helpers import fetch_one, execute_write
@@ -26,7 +25,7 @@ async def bookmark_scanner(payload: BookmarkRequest, request: Request, user_data
         exists = await fetch_one(exists_query, (user_data["user_id"], payload.scanner_id), conn)
         if exists:
             await conn.close()
-            return ORJSONResponse({"success": False, "message": "Already bookmarked"})
+            return ({"success": False, "message": "Already bookmarked"})
 
         now = utc_now()
         await execute_write(
@@ -40,7 +39,7 @@ async def bookmark_scanner(payload: BookmarkRequest, request: Request, user_data
         )
 
         await conn.close()
-        return ORJSONResponse({"success": True, "message": "Scanner bookmarked"})
+        return ({"success": True, "message": "Scanner bookmarked"})
 
     except Exception as e:
         await notify_internal(f"[Bookmark Scanner Error] {e}")

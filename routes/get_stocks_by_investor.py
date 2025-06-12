@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all, fetch_one
 from utils.auth import authorize_user
@@ -48,11 +47,11 @@ async def get_stocks_by_investor(
 
         results = [dict(row) for row in rows]
 
-        return ORJSONResponse(content={
-            "success": True,
+        return {
             "total_stocks": total_stocks,
             "data": results
-        })
+        }
+
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

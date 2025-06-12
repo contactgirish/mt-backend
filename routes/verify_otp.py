@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, EmailStr
 from db.connection import get_single_connection
 from utils.jwt_utils import create_jwt_token
@@ -32,10 +31,7 @@ async def verify_otp(payload: VerifyOtpRequest, request: Request):
         )
 
         if not row:
-            return ORJSONResponse(
-                status_code=401,
-                content={"success": False, "message": "Invalid or expired OTP"}
-            )
+            raise HTTPException(status_code=401, detail="Invalid or expired OTP")
 
         await conn.execute("UPDATE mt_otps SET is_valid = false WHERE id = $1", row["id"])
 
@@ -72,13 +68,12 @@ async def verify_otp(payload: VerifyOtpRequest, request: Request):
 
         access_token = create_jwt_token(user_id=user_id, iat=now, exp=access_exp)
 
-        return ORJSONResponse({
-            "success": True,
+        return {
             "access_token": access_token,
-            "expires_in": 60 * 60 * 24 * 30,  # 30 days
+            "expires_in": 60 * 60 * 24 * 30,
             "user_id": user_id,
             "newuser": is_new_user
-        })
+        }
 
     except Exception as e:
         await notify_internal(f"[Verify OTP Error] {str(e)}")

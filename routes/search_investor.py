@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Query, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
 from utils.auth import authorize_user
@@ -40,7 +39,7 @@ async def search_investor(
             if len(unique_investors) == 20:
                 break
 
-        return ORJSONResponse(unique_investors)
+        return {"investors": unique_investors}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")

@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
 from utils.auth import authorize_user
@@ -34,7 +33,7 @@ async def get_top_scanners(
         await conn.close()
 
         top_scanners = [dict(row) for row in records]
-        return ORJSONResponse(top_scanners)
+        return {"top_scanners": top_scanners}
 
     except Exception as e:
         await notify_internal(f"[Get Top Scanners Error] {e}")

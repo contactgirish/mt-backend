@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from utils.auth import authorize_user
 from db.connection import get_single_connection
@@ -47,7 +46,7 @@ async def delete_stock_from_watchlist(
             conn
         )
 
-        return ORJSONResponse({"success": True, "message": "Stock removed from watchlist"})
+        return ({"success": True, "message": "Stock removed from watchlist"})
 
     except HTTPException:
         raise

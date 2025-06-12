@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
 from utils.auth import authorize_user
@@ -67,7 +66,7 @@ async def search_stock(
             """
             results = await fetch_all(query, (term,), conn)
 
-        return ORJSONResponse({"stocks": [dict(row) for row in results]})
+        return {"stocks": [dict(row) for row in results]}
 
     except Exception as e:
         await notify_internal(f"[Search Stock Error] {e}")

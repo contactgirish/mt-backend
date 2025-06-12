@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, EmailStr
 from db.connection import get_single_connection
 from utils.jwt_utils import create_jwt_token
@@ -28,10 +27,7 @@ async def social_login(payload: SocialLoginRequest, request: Request):
 
         platform = payload.platform.lower()
         if platform not in ["google", "apple"]:
-            return ORJSONResponse(
-                status_code=400,
-                content={"error": "Unsupported platform"}
-            )
+            raise HTTPException(status_code=400, detail="Unsupported platform")
 
         phone_number = payload.phone_number or None
         conn = await get_single_connection()
@@ -57,10 +53,7 @@ async def social_login(payload: SocialLoginRequest, request: Request):
                     await notify_internal(f"[Blocked Login Attempt] User ID {user_id} tried to log in.")
                 except Exception as te:
                     print(f"[Telegram Notify Failed] {te}")
-                return ORJSONResponse(
-                    status_code=403,
-                    content={"error": "User account is blocked. Please contact support."}
-                )
+                    raise HTTPException(status_code=403, detail="User account is blocked. Please contact support.")
 
             await conn.execute(
                 "UPDATE mt_users SET jwt_iat = $1, jwt_exp = $2 WHERE id = $3",
@@ -91,17 +84,11 @@ async def social_login(payload: SocialLoginRequest, request: Request):
                 )
             except Exception as db_exc:
                 await notify_internal(f"[DB Insert Error] {db_exc}\n{traceback.format_exc()}")
-                return ORJSONResponse(
-                    status_code=500,
-                    content={"error": "Failed to create user in database."}
-                )
+                raise HTTPException(status_code=500, detail="Failed to create user in database.")
 
             if not row or "id" not in row:
                 await notify_internal("[DB Insert Error] Insert succeeded but no row returned.")
-                return ORJSONResponse(
-                    status_code=500,
-                    content={"error": "User creation failed."}
-                )
+                raise HTTPException(status_code=500, detail="User creation failed.")                    
 
             user_id = row["id"]
 
@@ -118,13 +105,13 @@ async def social_login(payload: SocialLoginRequest, request: Request):
 
         access_token = create_jwt_token(user_id=user_id, iat=now, exp=access_exp)
 
-        return ORJSONResponse({
+        return {
             "access_token": access_token,
             "expires_in": 60 * 60 * 24 * 30,
             "user_id": user_id,
             "isNewUser": is_new_user,
             "update_type": update_type
-        })
+        }
 
     except Exception as e:
         print("[EXCEPTION CAUGHT] Sending to Telegram...")
@@ -132,7 +119,4 @@ async def social_login(payload: SocialLoginRequest, request: Request):
             await notify_internal(f"[Login Error] {e}\n{traceback.format_exc()}")
         except Exception as te:
             print(f"[Telegram Notify Failed] {te}")
-        return ORJSONResponse(
-            status_code=500,
-            content={"error": "Something went wrong. Please try again."}
-        )
+        raise HTTPException(status_code=500, detail="Something went wrong. Please try again.")

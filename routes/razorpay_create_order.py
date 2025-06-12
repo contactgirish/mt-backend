@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 import requests
 import os
@@ -89,7 +88,7 @@ async def create_razorpay_order(
         ), conn)
 
         print("📝 Order saved to DB")
-        return ORJSONResponse(order)
+        return {"order": order}
 
     except ValueError as ve:
         print("⚠️ Promo validation error:", str(ve))

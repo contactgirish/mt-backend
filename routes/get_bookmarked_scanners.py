@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
 from utils.auth import authorize_user
@@ -24,7 +23,7 @@ async def get_bookmarked_scanners(request: Request, user_data=Depends(authorize_
         await conn.close()
 
         bookmarked = [dict(row) for row in records]
-        return ORJSONResponse(bookmarked)
+        return (bookmarked)
 
     except Exception as e:
         await notify_internal(f"[Get Bookmarked Scanners Error] {e}")

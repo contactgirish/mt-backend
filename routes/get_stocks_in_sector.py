@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
-from fastapi.responses import ORJSONResponse
 from utils.auth import authorize_user
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
@@ -66,7 +65,7 @@ async def get_stocks_in_sector(
 
         rows = await fetch_all(query, tuple(values), conn)
         results = [serialize_row(row) for row in rows]
-        return ORJSONResponse(content={"success": True, "data": results})
+        return {"data": results}
     except Exception as e:
         await notify_internal(f"[get_stocks_in_sector Error] {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")

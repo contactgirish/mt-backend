@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends
-from fastapi.responses import ORJSONResponse
 from db.connection import get_single_connection
 from db.db_helpers import fetch_all
 from utils.auth import authorize_user
@@ -16,11 +15,8 @@ async def get_scanners(request: Request, user_data=Depends(authorize_user)):
         await conn.close()
 
         scanners = [dict(record) for record in records]
-        return ORJSONResponse(scanners)
+        return {"scanners": scanners}
 
     except Exception as e:
         await notify_internal(f"[get_scanners Error] {e}")
-        return ORJSONResponse(
-            status_code=500,
-            content={"success": False, "message": "Failed to fetch scanners"}
-        )
+        raise HTTPException(status_code=500, detail="Failed to fetch scanners")

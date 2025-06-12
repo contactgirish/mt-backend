@@ -7,3 +7,11 @@ fastapi-cache2==0.2.1
 orjson==3.10.1
 python-jose==3.3.0
 requests==2.31.0
+pandas==2.2.2
+pandas-ta==0.3.14b0
+aiohttp==3.9.5
+setuptools<81
+aiofiles>=23.1.0
+Pillow>=10.0.0
+async-timeout>=4.0.2
+

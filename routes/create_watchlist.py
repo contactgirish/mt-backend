@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, constr
 from utils.auth import authorize_user
 from utils.telegram_notifier import notify_internal
@@ -40,12 +39,9 @@ async def create_watchlist(
                 user_id
             )
             if watchlist_count >= max_allowed:
-                return ORJSONResponse(
+                raise HTTPException(
                     status_code=403,
-                    content={
-                        "success": False,
-                        "message": f"Free plan users can only create up to {max_allowed} watchlists."
-                    }
+                    detail=f"Free plan users can only create up to {max_allowed} watchlists."
                 )
 
         # ✅ Case-insensitive duplicate check
@@ -66,7 +62,7 @@ async def create_watchlist(
             user_id, watchlist_name, now
         )
 
-        return ORJSONResponse({
+        return ({
             "success": True,
             "message": "Watchlist created successfully",
             "watchlist_id": row["id"]

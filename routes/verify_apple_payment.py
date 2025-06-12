@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta, timezone
@@ -88,7 +87,7 @@ async def verify_apple_payment(payload: ApplePaymentRequest, user_data: dict = D
         ), conn)
 
         await notify_internal(f"[🍎 Apple Verified] UID {user_id}, ₹{result['final_price']}")
-        return ORJSONResponse({"success": True, "amount": result["final_price"]})
+        return {"amount": result["final_price"]}
 
     except ValueError as ve:
         await notify_internal(f"[❌ Apple Verify Error] {str(ve)}")
