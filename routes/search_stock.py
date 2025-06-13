@@ -9,12 +9,13 @@ router = APIRouter()
 @router.get("/search_stock")
 async def search_stock(
     request: Request,
-    q: str = Query(..., min_length=1),
+    search: str = Query(None),
+    watchlist_id: int = Query(None),
     user=Depends(authorize_user)
 ):
     try:
         conn = await get_single_connection()
-        term = q.strip()
+        term = search.strip() if search else ""
         term_len = len(term)
 
         base_condition = """
@@ -24,7 +25,29 @@ async def search_stock(
             AND exchange = 'NSE'
         """
 
-        if term_len == 1:
+        results = []
+
+        if not term and not watchlist_id:
+            # Return top 20 stocks by market cap
+            query = f"""
+                SELECT
+                    script_id,
+                    co_code,
+                    companyname,
+                    companyshortname,
+                    latest_price::float,
+                    exchange,
+                    sector,
+                    company_size,
+                    changed_percentage::float
+                FROM script_master
+                WHERE {base_condition}
+                ORDER BY market_cap DESC
+                LIMIT 20
+            """
+            results = await fetch_all(query, (), conn)
+
+        elif term_len == 1:
             query = f"""
                 SELECT DISTINCT ON (companyname)
                     script_id,
@@ -66,7 +89,24 @@ async def search_stock(
             """
             results = await fetch_all(query, (term,), conn)
 
-        return {"stocks": [dict(row) for row in results]}
+        script_list = [row["script_id"] for row in results]
+
+        watchlist_scripts = set()
+        if watchlist_id and script_list:
+            watchlist_query = """
+                SELECT script_id FROM mt_watchlist_stocks
+                WHERE watchlist_id = $1 AND script_id = ANY($2)
+            """
+            watchlist_result = await fetch_all(watchlist_query, (watchlist_id, script_list), conn)
+            watchlist_scripts = {row["script_id"] for row in watchlist_result}
+
+        enriched_results = []
+        for row in results:
+            item = dict(row)
+            item["watchlist_status"] = item["script_id"] in watchlist_scripts
+            enriched_results.append(item)
+
+        return {"stocks": enriched_results}
 
     except Exception as e:
         await notify_internal(f"[Search Stock Error] {e}")
